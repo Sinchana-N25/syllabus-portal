@@ -1,7 +1,7 @@
 import React from "react";
-import { X, Download, FileJson, FileText, File } from "lucide-react";
+import { X, FileJson, FileText, File } from "lucide-react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import "jspdf-autotable"; // This import is crucial for PDF tables
 import {
   Document,
   Packer,
@@ -12,6 +12,11 @@ import {
   TableCell,
   WidthType,
   BorderStyle,
+  Header,
+  Footer,
+  ImageRun,
+  AlignmentType,
+  VerticalAlign,
 } from "docx";
 import { saveAs } from "file-saver";
 
@@ -30,177 +35,424 @@ const ViewModal = ({ syllabus, onClose }) => {
     const doc = new jsPDF();
 
     // Header
-    doc.setFontSize(16);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 100, 0); // Green color for BIT
     doc.text("BANGALORE INSTITUTE OF TECHNOLOGY", 105, 15, { align: "center" });
-    doc.setFontSize(12);
-    doc.text("Department of Computer Science & Engineering", 105, 22, {
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Autonomous Institute, Affiliated to VTU, Belgaum", 105, 20, {
       align: "center",
     });
+    doc.line(10, 22, 200, 22); // Horizontal line
 
-    // Course Details Table
+    // Basic Info Table (Vertical Layout like screenshot)
+    const basicInfo = [
+      ["Semester", syllabus.semester],
+      ["Course Title", syllabus.courseTitle],
+      ["Course Code", syllabus.courseCode],
+      ["Credits", syllabus.credits],
+      ["Total Hours of Pedagogy", syllabus.totalHours],
+      ["L-T-P-S", syllabus.ltps],
+      ["CIE", syllabus.cie],
+      ["SEE", syllabus.see],
+      ["TOTAL", syllabus.totalMarks],
+      ["Exam Type", syllabus.examType],
+      ["Exam Hours", syllabus.examHours],
+    ];
+
     doc.autoTable({
       startY: 30,
-      head: [["Semester", "Course Title", "Course Code", "Credits"]],
-      body: [
-        [
-          syllabus.semester,
-          syllabus.courseTitle,
-          syllabus.courseCode,
-          syllabus.credits,
-        ],
-      ],
+      body: basicInfo,
       theme: "grid",
-      headStyles: { fillColor: [22, 160, 133] },
+      styles: {
+        fontSize: 9,
+        cellPadding: 1.5,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
     });
 
-    // Marks & Hours
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 10,
-      head: [["CIE", "SEE", "Total Marks", "Exam Hours", "L:T:P:S"]],
-      body: [
-        [
-          syllabus.cie,
-          syllabus.see,
-          syllabus.totalMarks,
-          syllabus.examHours,
-          syllabus.ltps,
-        ],
-      ],
-      theme: "grid",
-      headStyles: { fillColor: [41, 128, 185] },
-    });
+    let finalY = doc.lastAutoTable.finalY + 5;
 
-    // Objectives
-    let finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
-    doc.text("Course Objectives:", 14, finalY);
-    doc.setFont(undefined, "normal");
+    // Objectives Box
     doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      "Course objectives: This course will enable the students to:",
+      14,
+      finalY
+    );
+
+    // Split text for wrapping
+    doc.setFont("helvetica", "normal");
     const splitObj = doc.splitTextToSize(syllabus.courseObjectives, 180);
-    doc.text(splitObj, 14, finalY + 7);
+    doc.rect(14, finalY + 2, 182, splitObj.length * 5 + 4); // Box
+    doc.text(splitObj, 16, finalY + 7);
+
+    finalY += splitObj.length * 5 + 10;
 
     // Modules
-    finalY = finalY + 10 + splitObj.length * 5;
-    doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
-    doc.text("Modules:", 14, finalY);
-
     const moduleRows = syllabus.modules.map((mod) => [
       `Module ${mod.moduleNo}`,
-      mod.description,
-      mod.rbt,
-      mod.textBookRef,
+      `${mod.description}\n\n(Ref: ${mod.textBookRef}, Chap: ${mod.chapter}, RBT: ${mod.rbt})`,
     ]);
 
     doc.autoTable({
-      startY: finalY + 5,
-      head: [["Module", "Description", "RBT Level", "Ref"]],
+      startY: finalY,
+      head: [["Module", "Description"]],
       body: moduleRows,
       theme: "grid",
-      columnStyles: { 1: { cellWidth: 100 } }, // Make description column wider
+      styles: { fontSize: 9, lineColor: [0, 0, 0], lineWidth: 0.1 },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: 0,
+        fontStyle: "bold",
+      },
     });
 
     // Outcomes
     finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
+    const coRows = syllabus.courseOutcomes.map((co, i) => [`CO${i + 1}`, co]);
+
     doc.text("Course Outcomes:", 14, finalY);
-    doc.setFont(undefined, "normal");
-    doc.setFontSize(10);
-    syllabus.courseOutcomes.forEach((co, i) => {
-      finalY += 6;
-      doc.text(`CO${i + 1}: ${co}`, 14, finalY);
+    doc.autoTable({
+      startY: finalY + 2,
+      head: [["Sl. No", "Course Outcomes"]],
+      body: coRows,
+      theme: "grid",
+      styles: { fontSize: 9, lineColor: [0, 0, 0], lineWidth: 0.1 },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: 0,
+        fontStyle: "bold",
+      },
+      columnStyles: { 0: { cellWidth: 20 } },
+    });
+
+    // Footer
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.text(
+      "K.R. Road, V. V. Pura, Bengaluru - 560 004",
+      105,
+      pageHeight - 15,
+      { align: "center" }
+    );
+    doc.text("Website: www.bit-bangalore.edu.in", 105, pageHeight - 11, {
+      align: "center",
     });
 
     doc.save(`${syllabus.courseCode}_Syllabus.pdf`);
   };
 
-  // --- DOWNLOAD: WORD (DOCX) ---
-  const downloadWord = () => {
-    // Helper to create table cells
-    const createCell = (text) =>
+  // --- DOWNLOAD: WORD (DOCX) - EXACT FORMATTING ---
+  const downloadWord = async () => {
+    // Helper for table borders (Black single line)
+    const tableBorders = {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+    };
+
+    // Helper for table cells
+    const cell = (text, bold = false, widthPercent = 50) =>
       new TableCell({
-        children: [new Paragraph(text)],
-        width: { size: 25, type: WidthType.PERCENTAGE },
+        width: { size: widthPercent, type: WidthType.PERCENTAGE },
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: text.toString(),
+                bold: bold,
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+        ],
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 100, bottom: 100, left: 100, right: 100 },
       });
 
-    // Modules Rows
+    // 1. Basic Info Rows
+    const basicInfoData = [
+      ["Semester", syllabus.semester],
+      ["Course Title", syllabus.courseTitle],
+      ["Course Code", syllabus.courseCode],
+      ["Credits", syllabus.credits],
+      ["Total Hours of Pedagogy", syllabus.totalHours],
+      ["L-T-P-S", syllabus.ltps],
+      ["CIE", syllabus.cie],
+      ["SEE", syllabus.see],
+      ["TOTAL", syllabus.totalMarks],
+      ["Exam Type", syllabus.examType],
+      ["Exam Hours", syllabus.examHours],
+    ];
+
+    const basicInfoRows = basicInfoData.map(
+      ([label, value]) =>
+        new TableRow({
+          children: [cell(label, false, 30), cell(value, true, 70)],
+        })
+    );
+
+    // 2. Modules Rows
     const moduleRows = syllabus.modules.map(
       (mod) =>
         new TableRow({
           children: [
-            createCell(`Module ${mod.moduleNo}`),
+            new TableCell({
+              children: [
+                new Paragraph({ text: `Module ${mod.moduleNo}`, bold: true }),
+              ],
+              width: { size: 20, type: WidthType.PERCENTAGE },
+            }),
             new TableCell({
               children: [new Paragraph(mod.description)],
-              width: { size: 50, type: WidthType.PERCENTAGE },
+              width: { size: 60, type: WidthType.PERCENTAGE },
             }),
-            createCell(mod.rbt),
-            createCell(mod.textBookRef),
+            new TableCell({
+              children: [new Paragraph(mod.chapter)],
+              width: { size: 10, type: WidthType.PERCENTAGE },
+            }),
+            new TableCell({
+              children: [new Paragraph(mod.rbt)],
+              width: { size: 10, type: WidthType.PERCENTAGE },
+            }),
           ],
         })
     );
 
+    // 3. Outcomes Rows
+    const coRows = syllabus.courseOutcomes.map(
+      (co, i) =>
+        new TableRow({
+          children: [cell((i + 1).toString(), false, 10), cell(co, false, 90)],
+        })
+    );
+
+    // 4. Books Rows
+    const bookRows = syllabus.textBooks.map(
+      (book) =>
+        new TableRow({
+          children: [
+            cell(book.slNo.toString(), false, 10),
+            cell(book.author, false, 30),
+            cell(book.title, false, 30),
+            cell(book.publisher, false, 20),
+            cell(book.editionYear, false, 10),
+          ],
+        })
+    );
+
+    // FETCH IMAGE
+    let imageBuffer = null;
+    try {
+      const response = await fetch("/university-logo.png"); // Expects file in public folder
+      if (response.ok) {
+        const blob = await response.blob();
+        imageBuffer = await blob.arrayBuffer();
+      }
+      // eslint-disable-next-line no-unused-vars
+    } catch (e) {
+      console.warn("Logo not found");
+    }
+
     const doc = new Document({
       sections: [
         {
+          headers: {
+            default: new Header({
+              children: [
+                imageBuffer
+                  ? new Paragraph({
+                      children: [
+                        new ImageRun({
+                          data: imageBuffer,
+                          transformation: { width: 60, height: 60 },
+                        }),
+                      ],
+                      alignment: AlignmentType.CENTER,
+                    })
+                  : new Paragraph({
+                      text: "[LOGO]",
+                      alignment: AlignmentType.CENTER,
+                    }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "BANGALORE INSTITUTE OF TECHNOLOGY",
+                      bold: true,
+                      size: 28,
+                      color: "006400",
+                      font: "Times New Roman",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Autonomous Institute, Affiliated to VTU, Belgaum",
+                      size: 20,
+                      color: "2E75B6",
+                      font: "Times New Roman",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "________________________________________________________________________________",
+                      bold: true,
+                      color: "FF0000",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+            }),
+          },
+          footers: {
+            default: new Footer({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "K.R. Road, V. V. Pura, Bengaluru – 560 004",
+                      size: 18,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Phone: +91(080) 26613237, 26615865 | Website: www.bit-bangalore.edu.in",
+                      size: 18,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "E-mail : principalbit4@gmail.com, principal@bit-bangalore.edu.in",
+                      size: 18,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Accredited by NBA: 9 UG Programs, NAAC A+ and QS-I Gauge (Gold Rating)",
+                      size: 18,
+                      font: "Times New Roman",
+                      bold: true,
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+            }),
+          },
           children: [
-            new Paragraph({
-              text: "BANGALORE INSTITUTE OF TECHNOLOGY",
-              heading: "Heading1",
-              alignment: "center",
-            }),
-            new Paragraph({
-              text: "Department of Computer Science & Engineering",
-              alignment: "center",
-            }),
-            new Paragraph({ text: "" }), // Spacing
-
-            // Basic Info
-            new Paragraph({
-              text: `Course: ${syllabus.courseTitle} (${syllabus.courseCode})`,
-              heading: "Heading2",
-            }),
-            new Paragraph({
-              text: `Semester: ${syllabus.semester} | Credits: ${syllabus.credits} | L:T:P:S: ${syllabus.ltps}`,
+            // BASIC INFO TABLE
+            new Table({
+              rows: basicInfoRows,
+              borders: tableBorders,
+              width: { size: 100, type: WidthType.PERCENTAGE },
             }),
             new Paragraph({ text: "" }),
 
-            // Objectives
-            new Paragraph({ text: "Course Objectives", heading: "Heading3" }),
-            new Paragraph({ text: syllabus.courseObjectives }),
+            // OBJECTIVES
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Course objectives: This course will enable the students to:",
+                  bold: true,
+                  font: "Times New Roman",
+                }),
+              ],
+              border: {
+                top: { style: BorderStyle.SINGLE },
+                bottom: { style: BorderStyle.SINGLE },
+                left: { style: BorderStyle.SINGLE },
+                right: { style: BorderStyle.SINGLE },
+              },
+              spacing: { before: 200, after: 200 },
+              indent: { left: 100, right: 100 },
+            }),
+            new Paragraph({
+              text: syllabus.courseObjectives,
+              font: "Times New Roman",
+            }),
             new Paragraph({ text: "" }),
 
-            // Modules Table
+            // MODULES
+            new Paragraph({ text: "Modules", heading: "Heading3" }),
             new Table({
               rows: [
                 new TableRow({
                   children: [
-                    createCell("Module"),
-                    new TableCell({
-                      children: [new Paragraph("Description")],
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                    }),
-                    createCell("RBT Level"),
-                    createCell("Ref"),
+                    cell("Module", true, 20),
+                    cell("Description", true, 60),
+                    cell("Chapter", true, 10),
+                    cell("RBT", true, 10),
                   ],
                 }),
                 ...moduleRows,
               ],
+              borders: tableBorders,
               width: { size: 100, type: WidthType.PERCENTAGE },
             }),
-
             new Paragraph({ text: "" }),
 
-            // Outcomes
+            // OUTCOMES
             new Paragraph({ text: "Course Outcomes", heading: "Heading3" }),
-            ...syllabus.courseOutcomes.map(
-              (co, i) =>
-                new Paragraph({
-                  text: `CO${i + 1}: ${co}`,
-                  bullet: { level: 0 },
-                })
-            ),
+            new Table({
+              rows: [
+                new TableRow({
+                  children: [
+                    cell("Sl. No", true, 10),
+                    cell("Course Outcomes", true, 90),
+                  ],
+                }),
+                ...coRows,
+              ],
+              borders: tableBorders,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+            new Paragraph({ text: "" }),
+
+            // BOOKS
+            new Paragraph({ text: "Text Books", heading: "Heading3" }),
+            new Table({
+              rows: [
+                new TableRow({
+                  children: [
+                    cell("No", true, 10),
+                    cell("Author", true, 30),
+                    cell("Title", true, 30),
+                    cell("Publisher", true, 20),
+                    cell("Year", true, 10),
+                  ],
+                }),
+                ...bookRows,
+              ],
+              borders: tableBorders,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
           ],
         },
       ],
@@ -256,107 +508,59 @@ const ViewModal = ({ syllabus, onClose }) => {
           </div>
         </div>
 
-        {/* Content - Scrollable Document View */}
+        {/* Content Preview */}
         <div className="flex-1 overflow-y-auto p-8 bg-white font-serif">
           <div className="max-w-3xl mx-auto space-y-8 text-slate-800">
-            {/* Top Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-lg border border-slate-100 font-sans">
-              <div>
-                <span className="text-slate-500 text-xs uppercase font-bold">
-                  Credits
-                </span>
-                <p className="font-semibold">{syllabus.credits}</p>
-              </div>
-              <div>
-                <span className="text-slate-500 text-xs uppercase font-bold">
-                  Hours
-                </span>
-                <p className="font-semibold">{syllabus.totalHours}</p>
-              </div>
-              <div>
-                <span className="text-slate-500 text-xs uppercase font-bold">
-                  CIE/SEE
-                </span>
-                <p className="font-semibold">
-                  {syllabus.cie} / {syllabus.see}
-                </p>
-              </div>
-              <div>
-                <span className="text-slate-500 text-xs uppercase font-bold">
-                  Exam
-                </span>
-                <p className="font-semibold">{syllabus.examHours} Hrs</p>
-              </div>
+            <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
+              <h1 className="text-2xl font-bold text-green-800">
+                BANGALORE INSTITUTE OF TECHNOLOGY
+              </h1>
+              <p className="text-blue-700 font-semibold">
+                Autonomous Institute, Affiliated to VTU, Belgaum
+              </p>
             </div>
 
-            {/* Objectives */}
-            <section>
-              <h3 className="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-blue-900 font-sans">
-                Course Objectives
-              </h3>
-              <p className="whitespace-pre-wrap leading-relaxed">
-                {syllabus.courseObjectives}
-              </p>
-            </section>
+            <table className="w-full border-collapse border border-black mb-8">
+              <tbody>
+                {[
+                  ["Semester", syllabus.semester],
+                  ["Course Title", syllabus.courseTitle],
+                  ["Course Code", syllabus.courseCode],
+                  ["Credits", syllabus.credits],
+                  ["L:T:P:S", syllabus.ltps],
+                  ["Exam Hours", syllabus.examHours],
+                  ["CIE / SEE", `${syllabus.cie} / ${syllabus.see}`],
+                ].map(([label, val], i) => (
+                  <tr key={i} className="border-b border-black">
+                    <td className="border-r border-black p-2 font-bold bg-slate-100 w-1/3">
+                      {label}
+                    </td>
+                    <td className="p-2">{val}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-            {/* Modules */}
-            <section>
-              <h3 className="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-blue-900 font-sans">
-                Modules
-              </h3>
-              <div className="space-y-6">
-                {syllabus.modules.map((mod, i) => (
-                  <div key={i} className="pl-4 border-l-4 border-blue-100">
-                    <div className="flex justify-between items-baseline mb-2 font-sans">
-                      <h4 className="font-bold text-lg text-slate-700">
-                        Module {mod.moduleNo}
-                      </h4>
-                      <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">
-                        RBT: {mod.rbt}
-                      </span>
-                    </div>
-                    <p className="whitespace-pre-wrap mb-2">
-                      {mod.description}
-                    </p>
-                    <div className="text-sm text-slate-500 italic">
-                      Ref Books: {mod.textBookRef} | Chapter: {mod.chapter}
-                    </div>
+            <div className="border border-black p-4 mb-8">
+              <h3 className="font-bold mb-2">Course Objectives:</h3>
+              <p className="whitespace-pre-wrap">{syllabus.courseObjectives}</p>
+            </div>
+
+            <h3 className="text-xl font-bold mb-4">Modules</h3>
+            <div className="space-y-4">
+              {syllabus.modules.map((mod, i) => (
+                <div key={i} className="border border-black p-4">
+                  <div className="flex justify-between font-bold border-b border-black pb-2 mb-2">
+                    <span>Module {mod.moduleNo}</span>
+                    <span>RBT: {mod.rbt}</span>
                   </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Outcomes */}
-            <section>
-              <h3 className="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-blue-900 font-sans">
-                Course Outcomes
-              </h3>
-              <ul className="list-disc pl-5 space-y-2">
-                {syllabus.courseOutcomes.map((co, i) => (
-                  <li key={i}>
-                    <span className="font-bold font-sans text-sm mr-2">
-                      CO{i + 1}:
-                    </span>
-                    {co}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            {/* Books */}
-            <section>
-              <h3 className="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-blue-900 font-sans">
-                Textbooks
-              </h3>
-              <ul className="list-decimal pl-5 space-y-2">
-                {syllabus.textBooks.map((book, i) => (
-                  <li key={i}>
-                    <span className="font-semibold">{book.title}</span> by{" "}
-                    {book.author} — {book.publisher}, {book.editionYear}
-                  </li>
-                ))}
-              </ul>
-            </section>
+                  <p>{mod.description}</p>
+                  <p className="text-sm mt-2 italic">
+                    Ref: {mod.textBookRef}, Chap: {mod.chapter}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
