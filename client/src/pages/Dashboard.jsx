@@ -31,6 +31,7 @@ const Dashboard = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSyllabus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]); // Re-run when search changes
 
   return (
