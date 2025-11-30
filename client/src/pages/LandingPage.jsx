@@ -4,11 +4,18 @@ import { useAuth0 } from "@auth0/auth0-react";
 const LandingPage = () => {
   const { loginWithRedirect } = useAuth0();
 
+  const handleLogin = () => {
+    loginWithRedirect({
+      authorizationParams: {
+        connection: "google-oauth2", // This forces Google Login directly
+      },
+    });
+  };
+
   return (
     <div className="flex h-screen w-full bg-slate-50">
       {/* Left Side - Catchy Content */}
       <div className="w-1/2 flex flex-col justify-center px-16 bg-gradient-to-br from-blue-600 to-indigo-900 text-white relative overflow-hidden">
-        {/* Abstract circle decoration */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 right-0 w-64 h-64 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-x-1/2 translate-y-1/2"></div>
 
@@ -20,7 +27,8 @@ const LandingPage = () => {
           syllabus details with ease.
         </p>
         <div className="text-sm font-mono bg-blue-800/30 p-4 rounded-lg backdrop-blur-sm border border-blue-400/30 w-fit">
-          <span className="text-green-400">✔</span> Information Science Dept
+          <span className="text-green-400">✔</span> CSE Dept{" "}
+          {/* CHANGED THIS */}
         </div>
       </div>
 
@@ -35,7 +43,7 @@ const LandingPage = () => {
           </p>
 
           <button
-            onClick={() => loginWithRedirect()}
+            onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 p-4 rounded-xl hover:bg-slate-50 transition-all hover:border-blue-500 group"
           >
             <img
