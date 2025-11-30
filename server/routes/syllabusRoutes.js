@@ -68,4 +68,21 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// @route   PUT /api/syllabus/:id
+// @desc    Update an existing syllabus
+router.put("/:id", async (req, res) => {
+  try {
+    const updatedSyllabus = await Syllabus.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true } // Return the updated document
+    );
+    if (!updatedSyllabus)
+      return res.status(404).json({ msg: "Syllabus not found" });
+    res.status(200).json(updatedSyllabus);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

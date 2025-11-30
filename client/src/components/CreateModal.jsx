@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth0 } from "@auth0/auth0-react";
 import { X, Plus, Trash2, Save } from "lucide-react";
 
-const CreateModal = ({ onClose, refreshData }) => {
+const CreateModal = ({ onClose, refreshData, syllabusToEdit }) => {
   const { user } = useAuth0();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("basic"); // basic, modules, resources
+  const [activeTab, setActiveTab] = useState("basic");
 
-  // Initial State matches our Mongoose Schema
-  const [formData, setFormData] = useState({
+  // Default Empty State
+  const initialFormState = {
     semester: "",
     courseTitle: "",
     courseCode: "",
@@ -26,11 +26,20 @@ const CreateModal = ({ onClose, refreshData }) => {
     modules: [
       { moduleNo: 1, description: "", textBookRef: "", chapter: "", rbt: "" },
     ],
-    courseOutcomes: [""], // Array of strings
+    courseOutcomes: [""],
     textBooks: [
       { slNo: 1, author: "", title: "", publisher: "", editionYear: "" },
     ],
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  // PRE-FILL DATA IF EDITING
+  useEffect(() => {
+    if (syllabusToEdit) {
+      setFormData(syllabusToEdit);
+    }
+  }, [syllabusToEdit]);
 
   // Handle Simple Inputs
   const handleChange = (e) => {
@@ -93,7 +102,7 @@ const CreateModal = ({ onClose, refreshData }) => {
     setFormData({ ...formData, textBooks: newBooks });
   };
 
-  // Handle Course Outcomes (Array of Strings)
+  // Handle Course Outcomes
   const handleOutcomeChange = (index, value) => {
     const newOutcomes = [...formData.courseOutcomes];
     newOutcomes[index] = value;
@@ -112,18 +121,29 @@ const CreateModal = ({ onClose, refreshData }) => {
     setFormData({ ...formData, courseOutcomes: newOutcomes });
   };
 
-  // Submit Form
+  // Submit Form (Create OR Update)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const payload = { ...formData, userId: user.sub };
-      await axios.post(import.meta.env.VITE_API_URL, payload);
-      refreshData(); // Refresh Dashboard
-      onClose(); // Close Modal
+
+      if (syllabusToEdit) {
+        // UPDATE MODE
+        await axios.put(
+          `${import.meta.env.VITE_API_URL}/${syllabusToEdit._id}`,
+          payload
+        );
+      } else {
+        // CREATE MODE
+        await axios.post(import.meta.env.VITE_API_URL, payload);
+      }
+
+      refreshData();
+      onClose();
     } catch (error) {
-      console.error("Error creating syllabus:", error);
-      alert("Failed to save. Check console for details.");
+      console.error("Error saving syllabus:", error);
+      alert("Failed to save. Check console.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +155,7 @@ const CreateModal = ({ onClose, refreshData }) => {
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-800">
-            Create New Syllabus
+            {syllabusToEdit ? "Edit Syllabus" : "Create New Syllabus"}
           </h2>
           <button
             onClick={onClose}
@@ -162,7 +182,7 @@ const CreateModal = ({ onClose, refreshData }) => {
           ))}
         </div>
 
-        {/* Form Body - Scrollable */}
+        {/* Form Body */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
           <form
             id="createForm"
@@ -172,12 +192,14 @@ const CreateModal = ({ onClose, refreshData }) => {
             {/* --- TAB 1: BASIC INFO --- */}
             {activeTab === "basic" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* SAME AS BEFORE, JUST ADDING value={formData.xxx} to all inputs */}
                 <div className="col-span-2 bg-blue-50 p-4 rounded-lg text-blue-800 text-sm mb-2">
-                  Please fill in the general details of the course .
+                  General details of the course.
                 </div>
 
                 <input
                   name="courseTitle"
+                  value={formData.courseTitle}
                   placeholder="Course Title"
                   onChange={handleChange}
                   className="input-field col-span-2"
@@ -185,15 +207,17 @@ const CreateModal = ({ onClose, refreshData }) => {
                 />
                 <input
                   name="courseCode"
-                  placeholder="Course Code (e.g. BCS301)"
+                  value={formData.courseCode}
+                  placeholder="Course Code"
                   onChange={handleChange}
                   className="input-field"
                   required
                 />
                 <input
                   name="semester"
+                  value={formData.semester}
                   type="number"
-                  placeholder="Semester (Number)"
+                  placeholder="Semester"
                   onChange={handleChange}
                   className="input-field"
                   required
@@ -202,6 +226,7 @@ const CreateModal = ({ onClose, refreshData }) => {
                 <div className="grid grid-cols-2 gap-4 col-span-2 md:col-span-1">
                   <input
                     name="credits"
+                    value={formData.credits}
                     type="number"
                     placeholder="Credits"
                     onChange={handleChange}
@@ -210,7 +235,8 @@ const CreateModal = ({ onClose, refreshData }) => {
                   />
                   <input
                     name="totalHours"
-                    placeholder="Total Hours (e.g. 40+10)"
+                    value={formData.totalHours}
+                    placeholder="Total Hours"
                     onChange={handleChange}
                     className="input-field"
                     required
@@ -218,7 +244,8 @@ const CreateModal = ({ onClose, refreshData }) => {
                 </div>
                 <input
                   name="ltps"
-                  placeholder="L:T:P:S (e.g. 3:0:0:0)"
+                  value={formData.ltps}
+                  placeholder="L:T:P:S"
                   onChange={handleChange}
                   className="input-field"
                   required
@@ -227,24 +254,27 @@ const CreateModal = ({ onClose, refreshData }) => {
                 <div className="col-span-2 grid grid-cols-3 gap-4">
                   <input
                     name="cie"
+                    value={formData.cie}
                     type="number"
-                    placeholder="CIE Marks"
+                    placeholder="CIE"
                     onChange={handleChange}
                     className="input-field"
                     required
                   />
                   <input
                     name="see"
+                    value={formData.see}
                     type="number"
-                    placeholder="SEE Marks"
+                    placeholder="SEE"
                     onChange={handleChange}
                     className="input-field"
                     required
                   />
                   <input
                     name="totalMarks"
+                    value={formData.totalMarks}
                     type="number"
-                    placeholder="Total Marks"
+                    placeholder="Total"
                     onChange={handleChange}
                     className="input-field"
                     required
@@ -253,13 +283,15 @@ const CreateModal = ({ onClose, refreshData }) => {
 
                 <input
                   name="examType"
-                  placeholder="Exam Type (Theory/Practical)"
+                  value={formData.examType}
+                  placeholder="Exam Type"
                   onChange={handleChange}
                   className="input-field"
                   required
                 />
                 <input
                   name="examHours"
+                  value={formData.examHours}
                   type="number"
                   placeholder="Exam Hours"
                   onChange={handleChange}
@@ -273,10 +305,10 @@ const CreateModal = ({ onClose, refreshData }) => {
                   </label>
                   <textarea
                     name="courseObjectives"
+                    value={formData.courseObjectives}
                     rows="4"
                     onChange={handleChange}
                     className="input-area"
-                    placeholder="Enter objectives..."
                     required
                   ></textarea>
                 </div>
@@ -286,10 +318,10 @@ const CreateModal = ({ onClose, refreshData }) => {
                   </label>
                   <textarea
                     name="teachingLearningProcess"
+                    value={formData.teachingLearningProcess}
                     rows="4"
                     onChange={handleChange}
                     className="input-area"
-                    placeholder="Enter process..."
                     required
                   ></textarea>
                 </div>
@@ -321,7 +353,7 @@ const CreateModal = ({ onClose, refreshData }) => {
 
                     <div className="space-y-4 mt-6">
                       <textarea
-                        placeholder="Module Description / Content"
+                        placeholder="Description"
                         rows="4"
                         value={mod.description}
                         onChange={(e) =>
@@ -336,7 +368,7 @@ const CreateModal = ({ onClose, refreshData }) => {
                       />
                       <div className="grid grid-cols-3 gap-4">
                         <input
-                          placeholder="Text Book Ref (e.g. 1, 2)"
+                          placeholder="Text Book Ref"
                           value={mod.textBookRef}
                           onChange={(e) =>
                             handleModuleChange(
@@ -349,7 +381,7 @@ const CreateModal = ({ onClose, refreshData }) => {
                           required
                         />
                         <input
-                          placeholder="Chapter (e.g. 1.2, 3.4)"
+                          placeholder="Chapter"
                           value={mod.chapter}
                           onChange={(e) =>
                             handleModuleChange(index, "chapter", e.target.value)
@@ -358,7 +390,7 @@ const CreateModal = ({ onClose, refreshData }) => {
                           required
                         />
                         <input
-                          placeholder="RBT Level (e.g. L1, L2)"
+                          placeholder="RBT Level"
                           value={mod.rbt}
                           onChange={(e) =>
                             handleModuleChange(index, "rbt", e.target.value)
@@ -380,7 +412,7 @@ const CreateModal = ({ onClose, refreshData }) => {
               </div>
             )}
 
-            {/* --- TAB 3: OUTCOMES & RESOURCES --- */}
+            {/* --- TAB 3: RESOURCES --- */}
             {activeTab === "resources" && (
               <div className="space-y-8">
                 {/* Course Outcomes */}
@@ -399,7 +431,6 @@ const CreateModal = ({ onClose, refreshData }) => {
                           handleOutcomeChange(index, e.target.value)
                         }
                         className="input-field flex-1"
-                        placeholder="Enter outcome description..."
                         required
                       />
                       <button
@@ -514,7 +545,7 @@ const CreateModal = ({ onClose, refreshData }) => {
           </button>
           <button
             type="submit"
-            form="createForm" // Links button to form
+            form="createForm"
             disabled={loading}
             className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center gap-2"
           >
@@ -522,7 +553,7 @@ const CreateModal = ({ onClose, refreshData }) => {
               "Saving..."
             ) : (
               <>
-                <Save size={18} /> Save Syllabus
+                <Save size={18} /> {syllabusToEdit ? "Update" : "Save"} Syllabus
               </>
             )}
           </button>
